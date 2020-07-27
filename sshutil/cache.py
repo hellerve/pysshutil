@@ -68,7 +68,7 @@ class _SSHConnectionCache(object):
                     cls.ssh_config.parse(f)
 
     @classmethod
-    def open_os_socket(cls, host, port, use_config=True, debug=False, proxycmd=None):
+    def open_os_socket(cls, host, port, use_config=True, debug=False, proxycmd=None, timeout=None):
         if use_config:
             cls.init_class_config()
             config = cls.ssh_config.lookup(host)
@@ -110,6 +110,8 @@ class _SSHConnectionCache(object):
                 af, socktype, proto, unused_name, sa = addrinfo
                 try:
                     ossock = socket.socket(af, socktype, proto)
+                    if timeout:
+                        ossock.set_timeout(timeout)
                     ossock.connect(sa)
                     if attempt:
                         logger.debug("Succeeded after %s attempts to : %s", str(attempt),
@@ -133,8 +135,8 @@ class _SSHConnectionCache(object):
             raise
 
     @classmethod
-    def _open_ssh_socket(cls, host, port, username, password, use_config, debug, proxy):
-        ossock = cls.open_os_socket(host, port, use_config, debug, proxy)
+    def _open_ssh_socket(cls, host, port, username, password, use_config, debug, proxy, timeout):
+        ossock = cls.open_os_socket(host, port, use_config, debug, proxy, timeout)
         try:
             if debug:
                 logger.debug("Opening SSH socket to %s:%s", str(host), str(port))
@@ -227,7 +229,7 @@ class _SSHConnectionCache(object):
     def release_ssh_socket(self, ssh_socket, debug):
         raise NotImplementedError("release_ssh_socket")
 
-    def get_ssh_socket(self, host, port, username, password, debug, proxycmd=None):
+    def get_ssh_socket(self, host, port, username, password, debug, proxycmd=None, timeout=None):
         raise NotImplementedError("get_ssh_socket")
 
 
@@ -242,10 +244,10 @@ class SSHNoConnectionCache(_SSHConnectionCache):
         ssh_socket.close()
         ossock.close()
 
-    def get_ssh_socket(self, host, port, username, password, debug, proxycmd=None):
+    def get_ssh_socket(self, host, port, username, password, debug, proxycmd=None, timeout=None):
         # True below is to use users ssh config, should this be part of get_ssh_socket API?
         ossock, sshsock = _SSHConnectionCache._open_ssh_socket(host, port, username, password, True,
-                                                               debug, proxycmd)
+                                                               debug, proxycmd, timeout)
         sshsock.os_socket = ossock
         return sshsock
 
@@ -272,7 +274,7 @@ class SSHConnectionCache(_SSHConnectionCache):
         self.ssh_socket_timeout = {}
         self.ssh_sockets_lock = threading.Lock()
 
-    def get_ssh_socket(self, host, port, username, password, debug, proxycmd=None):
+    def get_ssh_socket(self, host, port, username, password, debug, proxycmd=None, timeout=None):
         """Returns a socket to the given host using the given credentials.
 
         If a socket has already been opened with the supplied arguments, then it will be reference
@@ -286,12 +288,13 @@ class SSHConnectionCache(_SSHConnectionCache):
         :param password: The password/key for authentication or None.
         :param debug: Boolean indicating if debug messages should be enabled.
         :param proxycmd: A proxy command to use when making the ssh connection.
+        :param timeout: Timeout to use when making the ssh connection.
         :raises: ssh.AuthenticationException
 
         """
         # Return an open ssh socket if we have one.
 
-        key = "{}:{}@{}:{}".format(host, port, username, proxycmd)
+        key = "{}:{}@{}:{}:{}".format(host, port, username, proxycmd, timeout)
         with self.ssh_sockets_lock:
             if debug:
                 logger.debug("Searching for \"%s\" in open ssh socket cache", key)
@@ -331,7 +334,7 @@ class SSHConnectionCache(_SSHConnectionCache):
             # True below is to use users ssh config, should this be part of get_ssh_socket
             # API?
             ossock, sshsock = _SSHConnectionCache._open_ssh_socket(host, port, username, password,
-                                                                   True, debug, proxycmd)
+                                                                   True, debug, proxycmd, timeout)
 
             if key not in self.ssh_sockets:
                 self.ssh_sockets[key] = []

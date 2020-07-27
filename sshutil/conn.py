@@ -55,7 +55,8 @@ class SSHConnection(object):
                  password=None,
                  debug=False,
                  cache=None,
-                 proxycmd=None):
+                 proxycmd=None,
+                 timeout=None):
         if cache is None:
             cache = g_cache
 
@@ -72,7 +73,7 @@ class SSHConnection(object):
 
         self.username = username
 
-        self.ssh = cache.get_ssh_socket(host, port, username, password, debug, proxycmd)
+        self.ssh = cache.get_ssh_socket(host, port, username, password, debug, proxycmd, timeout)
 
         # Open a session.
         try:
@@ -139,7 +140,8 @@ class SSHClientSession(SSHSession):
                  password=None,
                  debug=False,
                  cache=None,
-                 proxycmd=None):
+                 proxycmd=None,
+                 timeout=None):
         """Opens a client session to a host using a given subsystem.
 
         :param host: The host to execute the command on.
@@ -153,9 +155,10 @@ class SSHClientSession(SSHSession):
         :param cache: A connection cache to use.
         :type cache: SSHConnectionCache
         :param proxycmd: Proxy command to use when making the ssh connection.
+        :param timeout: Timeout to use for the SSH connection.
         """
         super(SSHClientSession, self).__init__(host, port, username, password, debug, cache,
-                                               proxycmd)
+                                               proxycmd, timeout)
         try:
             self.chan.invoke_subsystem(subsystem)
         except:
@@ -178,7 +181,8 @@ class SSHCommandSession(SSHSession):
                  password=None,
                  debug=False,
                  cache=None,
-                 proxycmd=None):
+                 proxycmd=None,
+                 timeout=None):
         """Open a client session to a host using a command i.e., like a remote pipe
 
         :param host: The host to execute the command on.
@@ -192,9 +196,10 @@ class SSHCommandSession(SSHSession):
         :param cache: A connection cache to use.
         :type cache: SSHConnectionCache
         :param proxycmd: Proxy command to use when making the ssh connection.
+        :param timeout: Timeout to use for the SSH connection.
         """
         super(SSHCommandSession, self).__init__(host, port, username, password, debug, cache,
-                                                proxycmd)
+                                                proxycmd, timeout)
         try:
             self.chan.exec_command(command)
         except:

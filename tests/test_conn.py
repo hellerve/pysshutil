@@ -37,8 +37,9 @@ def setup_module(module):
      SSHNoConnectionCache("SSH Session no cache"), None])
 @pytest.mark.parametrize("proxycmd", [None, proxy])
 @pytest.mark.parametrize("debug", [False, True])
-def test_command_session(cache, proxycmd, debug):
-    session = SSHCommandSession("localhost", 22, "cat", debug=debug, cache=cache, proxycmd=proxycmd)
+@pytest.mark.parametrize("timeout", [None, 1])
+def test_command_session(cache, proxycmd, debug, timeout):
+    session = SSHCommandSession("localhost", 22, "cat", debug=debug, cache=cache, proxycmd=proxycmd, timeout=timeout)
     s = "foobar\n"
     session.sendall(s)
     s2 = session.recv(len(s)).decode('utf-8')
